@@ -1,37 +1,69 @@
-import { pool } from "../db.js";
-
+import {db} from "./db.js"
+import { eq, sql } from "drizzle-orm";
+import { todos } from "./schema.js";
 // 1. Get all todos
 export async function listAllTodos() {
-const res = await pool.query("SELECT * FROM todos ORDER BY id ASC");
-return res.rows;
+const data = await db.select({
+      id: todos.id,
+      title:todos.title,
+      body: todos.body,
+      created_at: todos.created_at,
+      done:todos.done,
+    }).from(todos)
+    .orderBy(todos.id)
+return data;
 }
 
 // 2. Get a todo by ID
 export async function getTodoById(id) {
-const res = await pool.query("SELECT * FROM todos WHERE id = $1 LIMIT 1",[id]);
-return res.rows[0];
+    const data = await db
+    .select({
+      id: todos.id,
+      title:todos.title,
+      body: todos.body,
+      created_at: todos.created_at,
+      done:todos.done,
+    })
+    .from(todos)
+    .where(eq(todos.id, id))
+    .limit(1);
+
+  if (data.length) {
+    return data[0];
+  } else {
+    return false;
+  }
 }
 
 // 3. Create a new todo
-export async function createTodo(title, body) {
-const res = await pool.query("INSERT INTO todos (title, body) VALUES ($1, $2)",[title, body]);
-return res.rows[0];
+export async function createTodo(title, body,done) {
+     const result = await db.insert(todos).values({
+    title: title,
+    body: body,
+    done: done,
+  });
+
+  return result;
 }
 
 // 4. Update a todo
-export async function updateTodo(id, title, body) {
-const res = await pool.query("UPDATE todos SET title = $1, body = $2 WHERE id = $3",[title, body, id]);
-return res.rows[0];
+export async function updateTodo(id,body) {
+  const result = await db.update(todos).set(body).where(eq(todos.id, id));
+  return result;
 }
 // 5. Delete a todo by ID
 export async function deleteTodoById(id) {
-const res = await pool.query("DELETE FROM todos WHERE id = $1",[id]);
-return res.rows[0];
+    await db.delete(todos).where(eq(todos.id, id));
 }
 
 // 6. Toggle todo's done status
+
 export async function toggleTodoDone(id) {
-const res = await pool.query(
-"UPDATE todos SET done = NOT done WHERE id = $1 ",[id]);
-return res.rows[0];
+  const [updated] = await db
+    .update(todos)
+    .set({ done: sql`not ${todos.done}` })
+    .where(eq(todos.id, id))
+    .returning();
+
+  return updated ?? false;
 }

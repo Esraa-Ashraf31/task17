@@ -1,6 +1,6 @@
 import express from "express";
-
 import {listAllTodos,getTodoById,createTodo,updateTodo,deleteTodoById,toggleTodoDone} from "./db/todo.query.js";
+import { todoInsertSchema } from "./db/validation_schema.js";
 
 export const todoRouter = express.Router();
 
@@ -29,30 +29,30 @@ return res.status(200).json({
 
 // Create a new todo
 todoRouter.post("/", async (req, res) => {
-const { title, body} = req.body;
-const todo = await createTodo(title.trim(), body.trim());
-return res.status(201).json({
-  message: "Todo created successfully",
-  data: todo,
-});
+  const todo = todoInsertSchema.parse(req.body);
+  const result = await createTodo(todo.title, todo.body, todo.done);
 
+  res.status(201).json({
+    message: "Todo created successfully",
+    data: result,
+  });
 });
 
 // Update a todo
 todoRouter.patch("/:todo_id", async (req, res) => {
-const id = Number(req.params.todo_id);
-const { title, body} = req.body;
-const existingTodo = await getTodoById(id);
-if (!existingTodo) {
-  return res.status(404).json({
-    message: "Todo not found",
+  const id = Number(req.params.todo_id);
+  const body = todoInsertSchema.partial().parse(req.body);
+
+  const result = await updateTodo(id, body);
+
+  if (!result) {
+    return res.status(404).json({ message: "Todo not found" });
+  }
+
+  return res.status(200).json({
+    message: "Todo updated successfully",
+    data: result,
   });
-}
-const updatedTodo = await updateTodo( id, title.trim(), body.trim());
-return res.status(200).json({
-  message: "Todo updated successfully",
-  data: updatedTodo,
-});
 });
 
 // Toggle a todo's done status
